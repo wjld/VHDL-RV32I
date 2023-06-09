@@ -1,0 +1,8 @@
+#modelsim default library folder
+work/
+#modelsim project files
+*.bak
+*.mpf
+*.mti
+#modelsim simulation files
+*.wlf
