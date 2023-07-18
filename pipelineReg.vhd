@@ -2,10 +2,10 @@ library IEEE;
 use IEEE.std_logic_1164.all;
 
 entity pipelineReg is generic(
-    addSize: integer); port(
+    addSize: integer := 0); port(
     clk, wren, rst : in std_logic;
-    regIn: in std_logic_vector(addSize + 42 downto 0);
-    regOut : out std_logic_vector(addSize + 42 downto 0));
+    regIn: in std_logic_vector(addSize + 41 downto 0);
+    regOut : out std_logic_vector(addSize + 41 downto 0));
 end;
 
 architecture arch of pipelineReg is
@@ -17,7 +17,7 @@ begin
                 regOut <= regIn;
             elsif(rst = '1') then
                 regOut(31 downto 0) <= x"00000013";
-                regOut(addSize + 42 downto 32) <= (others => '0');
+                regOut(addSize + 41 downto 32) <= (others => '0');
             end if;
         end if;
     end process;
