@@ -16,8 +16,7 @@ begin
             if(wren = '1' and rst = '0') then
                 regOut <= regIn;
             elsif(rst = '1') then
-                regOut(31 downto 0) <= x"00000013";
-                regOut(addSize + 41 downto 32) <= (others => '0');
+                regOut <= (others => '0');
             end if;
         end if;
     end process;
