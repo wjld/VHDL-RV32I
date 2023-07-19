@@ -4,7 +4,7 @@ use IEEE.numeric_std.all;
 
 entity genImm32 is port(
     instr : in std_logic_vector(31 downto 0);
-    imm32 : out signed(31 downto 0));
+    imm32 : out std_logic_vector(31 downto 0));
 end;
 
 architecture arch of genImm32 is
@@ -22,12 +22,12 @@ operations:
     J <= resize(ins(31)&ins(19 downto 12)&ins(20)&ins(30 downto 21)&'0',32);
 output:
     with opcode select
-        imm32 <= I when x"03",
-                 I when x"13",
-                 I when x"67",
-                 S when x"23",
-                 B when x"63",
-                 U when x"37",
-                 J when x"6F",
-                 R when others;
+        imm32 <= std_logic_vector(I) when x"03",
+                 std_logic_vector(I) when x"13",
+                 std_logic_vector(I) when x"67",
+                 std_logic_vector(S) when x"23",
+                 std_logic_vector(B) when x"63",
+                 std_logic_vector(U) when x"37",
+                 std_logic_vector(J) when x"6F",
+                 std_logic_vector(R) when others;
 end;
