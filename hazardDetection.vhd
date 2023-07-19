@@ -3,7 +3,7 @@ use IEEE.std_logic_1164.all;
 
 entity hazardDetection is port(
     rdMem, beq : in std_logic;
-    rd, rs1, rs2 : in std_logic_vector(12 downto 0);
+    rd, rs1, rs2 : in std_logic_vector(4 downto 0);
     funct3Opcode : in std_logic_vector(9 downto 0);
     stall, flush : out std_logic
 );
