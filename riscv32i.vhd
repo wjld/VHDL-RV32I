@@ -15,12 +15,12 @@ architecture arch of riscv32i is
     signal pc, plus4PC, brJmpPC, pcS : std_logic_vector(31 downto 0);
     signal instrS, ifidS : std_logic_vector(31 downto 0);
 
-    signal aluSrcS, cntrlBrS, memrdS, memWrS : std_logic;
+    signal aluSrcS, cntrlBrS, memRdS, memWrS : std_logic;
     signal regWrS, mem2RegS, auipcS, luiS : std_logic;
     signal ifidFlushS, idexFlushS : std_logic;
     signal aluOpS : std_logic_vector(3 downto 0);
     signal immS, beqJalPC, reg1S, reg2S : std_logic_vector(31 downto 0);
-    signal idexS : std_logic_vector(120 downto 0);
+    signal idexS : std_logic_vector(127 downto 0);
 
     signal wbS : std_logic_vector(31 downto 0);
     signal memwbS : std_logic_vector(70 downto 0);
@@ -66,10 +66,11 @@ begin
         rs2 => ifidS(24 downto 20), rd => ifidS(11 downto 7),
         data => wbS, ro1 => reg1S, ro2 => reg2S
     );
-    IDEX: entity work.pipelineReg(arch) generic map(79) port map(
+    IDEX: entity work.pipelineReg(arch) generic map(86) port map(
         clk => clk, wren => stallS, rst => idexFlushS,
-        regIn => ifidS(42 downto 32) & reg1S & reg2S & immS
-               & ifidS(19 downto 15) & ifidS(24 downto 20)
+        regIn => mem2RegS & regWrS & memWrS & memRdS & cntrlBrS
+               & aluOpS & aluSrcS & ifidS(42 downto 32) & reg1S
+               & reg2S & immS & ifidS(19 downto 15) & ifidS(24 downto 20)
                & ifidS(11 downto 7),
         regOut => idexS
     );
