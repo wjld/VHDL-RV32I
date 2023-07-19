@@ -63,7 +63,7 @@ begin
     );
     regFile: entity work.xregs(arch) port map(
         clk => clk, wren => memwbS(69), rs1 => ifidS(19 downto 15),
-        rs2 => ifidS(24 downto 20), rd => ifidS(11 downto 7),
+        rs2 => ifidS(24 downto 20), rd => memwbS(4 downto 0),
         data => wbS, ro1 => reg1S, ro2 => reg2S
     );
     IDEX: entity work.pipelineReg(arch) generic map(86) port map(
