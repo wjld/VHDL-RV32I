@@ -25,7 +25,7 @@ architecture arch of riscv32i is
     signal hazardFlushS, ifidFlushS, idexFlushS : std_logic;
     signal aluOpS : std_logic_vector(3 downto 0);
     signal immS, beqJalPC, reg1S, reg2S : std_logic_vector(31 downto 0);
-    signal idexS : std_logic_vector(127 downto 0);
+    signal idexS : std_logic_vector(129 downto 0);
 
     signal wbS : std_logic_vector(31 downto 0);
     signal memwbS : std_logic_vector(70 downto 0);
@@ -78,10 +78,10 @@ begin
         rs2 => ifidS(24 downto 20), rd => memwbS(4 downto 0),
         data => wbS, ro1 => reg1S, ro2 => reg2S
     );
-    IDEX: entity work.pipelineReg(arch) generic map(86) port map(
+    IDEX: entity work.pipelineReg(arch) generic map(88) port map(
         clk => clk, wren => stallS, rst => idexFlushS,
-        regIn => mem2RegS & regWrS & memWrS & memRdS & cntrlBrS
-               & aluOpS & aluSrcS & ifidS(42 downto 32) & reg1S
+        regIn => luiS & auipcS & mem2RegS & regWrS & memWrS & memRdS 
+               & cntrlBrS & aluOpS & aluSrcS & ifidS(42 downto 32) & reg1S
                & reg2S & immS & ifidS(19 downto 15) & ifidS(24 downto 20)
                & ifidS(11 downto 7),
         regOut => idexS
