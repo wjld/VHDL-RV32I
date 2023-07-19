@@ -11,13 +11,18 @@ entity riscv32i is port(
 end;
 
 architecture arch of riscv32i is
+    function to_logic(bool : boolean) return std_logic is begin
+        if bool then return '1';
+        else return '0'; end if;
+    end function;
+
     signal brJmpS, stallS : std_logic;
     signal pc, plus4PC, brJmpPC, pcS : std_logic_vector(31 downto 0);
     signal instrS, ifidS : std_logic_vector(31 downto 0);
 
     signal aluSrcS, cntrlBrS, memRdS, memWrS : std_logic;
     signal regWrS, mem2RegS, auipcS, luiS : std_logic;
-    signal ifidFlushS, idexFlushS : std_logic;
+    signal hazardFlushS, ifidFlushS, idexFlushS : std_logic;
     signal aluOpS : std_logic_vector(3 downto 0);
     signal immS, beqJalPC, reg1S, reg2S : std_logic_vector(31 downto 0);
     signal idexS : std_logic_vector(127 downto 0);
@@ -53,6 +58,13 @@ begin
         funct7 => ifidS(30), aluOp => aluOpS, aluSrc => aluSrcS,
         branch => cntrlBrS, memRd => memRdS, memWr => memWrS,
         regWr => regWrS, mem2Reg => mem2RegS, auipc => auipcS, lui => luiS
+    );
+    hazardDetectionUnit: entity work.hazardDetection port map(
+        rdMem => idexS(67), beq => to_logic(reg1S = reg2S),
+        rd => memwbS(4 downto 0), rs1 => ifidS(19 downto 15),
+        rs2 => ifidS(24 downto 20),
+        funct3Opcode => ifidS(14 downto 12) & ifidS(6 downto 0),
+        stall => stallS, flush => hazardFlushS
     );
     immGen: entity work.genImm32(arch) port map(
         instr => ifidS(31 downto 0), imm32 => immS
