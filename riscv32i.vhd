@@ -22,10 +22,16 @@ architecture arch of riscv32i is
 
     signal aluSrcS, cntrlBrS, memRdS, memWrS : std_logic;
     signal regWrS, mem2RegS, auipcS, luiS : std_logic;
-    signal hazardFlushS, ifidFlushS, idexFlushS : std_logic;
+    signal hazardFlushS, ifidFlushS, idexFlushS, exmemFlushS : std_logic;
     signal aluOpS : std_logic_vector(3 downto 0);
     signal immS, beqJalPC, reg1S, reg2S : std_logic_vector(31 downto 0);
     signal idexS : std_logic_vector(129 downto 0);
+
+    signal alu1, alu2, aluA, aluB, aluOutS : std_logic_vector(31 downto 0);
+    signal forwardAS, forwardBS : std_logic_vector(1 downto 0);
+    signal aluZeroS : std_logic;
+
+    signal exmemS : std_logic_vector(72 downto 0);
 
     signal wbS : std_logic_vector(31 downto 0);
     signal memwbS : std_logic_vector(70 downto 0);
@@ -80,10 +86,43 @@ begin
     );
     IDEX: entity work.pipelineReg(arch) generic map(88) port map(
         clk => clk, wren => stallS, rst => idexFlushS,
-        regIn => luiS & auipcS & mem2RegS & regWrS & memWrS & memRdS 
+        regIn => luiS & auipcS & mem2RegS & regWrS & memWrS & memRdS
                & cntrlBrS & aluOpS & aluSrcS & ifidS(42 downto 32) & reg1S
                & reg2S & immS & ifidS(19 downto 15) & ifidS(24 downto 20)
                & ifidS(11 downto 7),
         regOut => idexS
+    );
+    ----------------------- instruction execute
+    rs1Mux: entity work.mux3(arch) port map(
+        a0 => idexS(110 downto 79),
+        a1 => x"00000" & "00" & idexS(120 downto 111),
+        a2 => x"00000000", sel => idexS(129 downto 128), b => alu1
+    );
+    rs2Mux: entity work.mux2(arch) port map(
+        a0 => idexS(78 downto 47), a1 => idexS(46 downto 15),
+        sel => idexS(121), b => alu2
+    );
+    forwardingUnit: entity work.forwarding(arch) port map(
+        exMemRegWr => exmemS(71), memWbRegWr => memwbS(69),
+        rs1 => idexS(14 downto 10), rs2 => idexS(9 downto 5),
+        exMemRd => exmemS(4 downto 0), memWbRd => memwbS(4 downto 0),
+        forwardA => forwardAS, forwardB => forwardBS
+    );
+    alu1Mux: entity work.mux3(arch) port map(
+        a0 => alu1, a1 => wbS, a2 => exmemS(68 downto 37),
+        sel => forwardAS, b => aluA
+    );
+    alu2Mux: entity work.mux3(arch) port map(
+        a0 => alu2, a1 => wbS, a2 => exmemS(68 downto 37),
+        sel => forwardBS, b => aluB
+    );
+    alu: entity work.alu(arch) port map(
+        opcode => idexS(125 downto 122), A => aluA, B => aluB,
+        Z => aluOutS, zero => aluZeroS
+    );
+    EXMEM: entity work.pipelineReg(arch) generic map(31) port map(
+        clk => clk, wren => '1', rst => exmemFlushS,
+        regIn => mem2RegS & regWrS & memWrS & memRdS & aluOutS & aluB
+               & idexS(4 downto 0), regOut => exmemS
     );
 end;
