@@ -18,7 +18,8 @@ architecture arch of riscv32i is
 
     signal brJmpS, stallS : std_logic;
     signal pc, plus4PC, brJmpPC, pcS : std_logic_vector(31 downto 0);
-    signal instrS, ifidS : std_logic_vector(31 downto 0);
+    signal instrS : std_logic_vector(31 downto 0);
+    signal ifidS : std_logic_vector(41 downto 0);
 
     signal aluSrcS, cntrlBrS, memRdS, memWrS : std_logic;
     signal regWrS, mem2RegS, auipcS, luiS : std_logic;
@@ -30,11 +31,11 @@ architecture arch of riscv32i is
     signal alu1, alu2, aluA, aluB, aluOutS : std_logic_vector(31 downto 0);
     signal forwardAS, forwardBS : std_logic_vector(1 downto 0);
     signal aluZeroS : std_logic;
-
     signal exmemS : std_logic_vector(72 downto 0);
 
-    signal wbS : std_logic_vector(31 downto 0);
     signal memwbS : std_logic_vector(70 downto 0);
+
+    signal wbS : std_logic_vector(31 downto 0);
 begin
     ----------------------- instruction fetch
     muxPC: entity work.mux2(arch) port map(
@@ -76,7 +77,7 @@ begin
         instr => ifidS(31 downto 0), imm32 => immS
     );
     beqJalAdder: entity work.adder(arch) port map(
-        a => x"00000" & "00" & ifidS(42 downto 32),
+        a => x"00000" & "00" & ifidS(41 downto 32),
         b => immS, c => beqJalPC
     );
     regFile: entity work.xregs(arch) port map(
@@ -87,7 +88,7 @@ begin
     IDEX: entity work.pipelineReg(arch) generic map(88) port map(
         clk => clk, wren => stallS, rst => idexFlushS,
         regIn => luiS & auipcS & mem2RegS & regWrS & memWrS & memRdS
-               & cntrlBrS & aluOpS & aluSrcS & ifidS(42 downto 32) & reg1S
+               & cntrlBrS & aluOpS & aluSrcS & ifidS(41 downto 32) & reg1S
                & reg2S & immS & ifidS(19 downto 15) & ifidS(24 downto 20)
                & ifidS(11 downto 7),
         regOut => idexS
