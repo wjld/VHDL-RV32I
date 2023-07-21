@@ -123,7 +123,7 @@ begin
     );
     EXMEM: entity work.pipelineReg(arch) generic map(31) port map(
         clk => clk, wren => '1', rst => exmemFlushS,
-        regIn => idexS(127 downto 121) & aluOutS & aluB & idexS(4 downto 0),
+        regIn => idexS(127 downto 124) & aluOutS & aluB & idexS(4 downto 0),
         regOut => exmemS
     );
 end;
