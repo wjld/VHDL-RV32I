@@ -12,7 +12,8 @@ end;
 
 architecture arch of riscv32i is
     signal brJmpS, stallS : std_logic;
-    signal pc, plus4PC, brJmpPC, pcS : std_logic_vector(31 downto 0);
+    signal pc : std_logic_vector(31 downto 0) := x"00000000";
+    signal plus4PC, brJmpPC, pcS : std_logic_vector(31 downto 0);
     signal instrS : std_logic_vector(31 downto 0);
     signal ifidS : std_logic_vector(41 downto 0);
 
@@ -50,7 +51,7 @@ begin
     exmemFlushS <= brJmpS;
     process(clk) is begin
         if(clk'event and clk = '1') then
-            if(stallS = '1') then
+            if(stallS = '1' and ((memIWr or memDWr) = '0')) then
                 pc <= pcS;
             end if;
         end if;
@@ -149,7 +150,8 @@ begin
         regOut => exmemS
     );
     ----------------------- memory access
-    brJmpS <= (exmemS(106) and exmemS(37)) or exmemS(105);
+    brJmpS <= '1' when ((exmemS(106) and exmemS(37)) or exmemS(105)) = '1' else
+              '0';
     dataMemAddrMux: entity work.mux2(arch) port map(
         a0 => exmemS(68 downto 37), a1 => x"00000" & "00" & memDAddr,
         sel => memDWr, b => dataAddrS
