@@ -5,8 +5,7 @@ use IEEE.numeric_std.all;
 entity alu is port(
     opcode : in std_logic_vector(3 downto 0);
     A, B : in std_logic_vector(31 downto 0);
-    Z : out std_logic_vector(31 downto 0);
-    zero : out std_logic
+    Z : out std_logic_vector(31 downto 0)
 );
 end;
 
@@ -23,7 +22,6 @@ architecture arch of alu is
     signal shamt : integer;
 begin
     shamt <= to_integer(unsigned(B(4 downto 0)));
-    zero <= nor Z;
     with opcode select Z <= 
         std_logic_vector(signed(A) + signed(B)) when "0000",
         std_logic_vector(signed(A) - signed(B)) when "0001",
