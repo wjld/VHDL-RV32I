@@ -61,11 +61,11 @@ begin
     );
     instrMem: entity work.memory(arch) port map(
         clk => clk, wren => memIWr, rden => '1', inAddr => memIAddr,
-        outAddr => pc(9 downto 0), inData => memIData, outData => instrS
+        outAddr => pc(11 downto 2), inData => memIData, outData => instrS
     );
     IFID: entity work.pipelineReg(arch) port map(
         clk => clk, wren => stallS, rst => ifidFlushS,
-        regIn => pc(9 downto 0) & instrS, regOut => ifidS
+        regIn => pc(11 downto 2) & instrS, regOut => ifidS
     );
     ----------------------- instruction decode
     controlUnit: entity work.control(arch) port map(
@@ -87,7 +87,7 @@ begin
         instr => ifidS(31 downto 0), imm32 => immS
     );
     beqAdder: entity work.adder(arch) port map(
-        a => x"00000" & "00" & ifidS(41 downto 32),
+        a => x"00000" & ifidS(41 downto 32) & "00",
         b => immS, c => beqPC
     );
     regFile: entity work.xregs(arch) port map(
@@ -105,7 +105,7 @@ begin
     );
     ----------------------- instruction execute
     branchJalAdder: entity work.adder(arch) port map(
-        a => x"00000" & "00" & idexS(120 downto 111),
+        a => x"00000" & idexS(120 downto 111) & "00",
         b => idexS(46 downto 15), c => branchJalPC
     );
     forwardingUnit: entity work.forwarding(arch) port map(
@@ -123,7 +123,7 @@ begin
         sel => forwardBS, b => fwdRs2S
     );
     alu1Mux: entity work.mux3(arch) port map(
-        a0 => fwdRs1S, a1 => x"00000" & "00" & idexS(120 downto 111),
+        a0 => fwdRs1S, a1 => x"00000" & idexS(120 downto 111) & "00",
         a2 => x"00000000", sel => (or idexS(133 downto 131)) & idexS(130),
         b => aluA
     );
@@ -136,7 +136,7 @@ begin
     );
     alu2Mux: entity work.mux3(arch) port map(
         a0 => fwdRs2S, a1 => idexS(46 downto 15),
-        a2 => x"00000" & "00" & ifidS(41 downto 32),
+        a2 => x"00000" & ifidS(41 downto 32) & "00",
         sel => (idexS(133) or idexS(132))
              & (idexS(121) and (not (idexS(133) or idexS(132)))), b => aluB
     );
@@ -153,7 +153,7 @@ begin
     brJmpS <= '1' when ((exmemS(106) and exmemS(37)) or exmemS(105)) = '1' else
               '0';
     dataMemAddrMux: entity work.mux2(arch) port map(
-        a0 => exmemS(68 downto 37), a1 => x"00000" & "00" & memDAddr,
+        a0 => exmemS(68 downto 37), a1 => x"00000" & memDAddr & "00",
         sel => memDWr, b => dataAddrS
     );
     dataMemDataMux: entity work.mux2(arch) port map(
@@ -162,7 +162,7 @@ begin
     );
     dataMemory: entity work.memory(arch) port map(
         clk => clk, wren => exmemS(70) or memDWr, rden => exmemS(69),
-        inAddr => dataAddrS(9 downto 0), outAddr => exmemS(46 downto 37),
+        inAddr => dataAddrS(11 downto 2), outAddr => exmemS(48 downto 39),
         inData => dataDataS, outData => dataMemOutS
     );
     MEMWB: entity work.pipelineReg(arch) generic map(29) port map(
