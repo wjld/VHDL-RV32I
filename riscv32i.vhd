@@ -33,6 +33,7 @@ architecture arch of riscv32i is
     signal aluZeroS : std_logic;
     signal exmemS : std_logic_vector(72 downto 0);
 
+    signal dataMemOutS, dataAddrS, dataDataS : std_logic_vector(31 downto 0);
     signal memwbS : std_logic_vector(70 downto 0);
 
     signal wbS : std_logic_vector(31 downto 0);
@@ -125,5 +126,25 @@ begin
         clk => clk, wren => '1', rst => exmemFlushS,
         regIn => idexS(127 downto 124) & aluOutS & aluB & idexS(4 downto 0),
         regOut => exmemS
+    );
+    ----------------------- memory access
+    dataMemAddrMux: entity work.mux2(arch) port map(
+        a0 => exmemS(68 downto 37), a1 => x"00000" & "00" & memDAddr,
+        sel => memDWr, b => dataAddrS
+    );
+    dataMemDataMux: entity work.mux2(arch) port map(
+        a0 => exmemS(36 downto 5), a1 => memDData,
+        sel => memDWr, b => dataDataS
+    );
+    dataMemory: entity work.memory(arch) port map(
+        clk => clk, wren => exmemS(70) or memDWr, rden => exmemS(69),
+        inAddr => dataAddrS(9 downto 0), outAddr => exmemS(46 downto 37),
+        inData => dataDataS, outData => dataMemOutS
+    );
+    MEMWB: entity work.pipelineReg(arch) port map(
+        clk => clk, wren => '1', rst => '0',
+        regIn => exmemS(72 downto 71) & dataMemOutS & exmemS(68 downto 37)
+               & exmemS(4 downto 0),
+        regOut => memwbS
     );
 end;
