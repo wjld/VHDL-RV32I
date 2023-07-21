@@ -147,4 +147,9 @@ begin
                & exmemS(4 downto 0),
         regOut => memwbS
     );
+    ----------------------- writeback
+    writebackMux: entity work.mux2(arch) port map(
+        a0 => memwbS(36 downto 5), a1 => memwbS(68 downto 37),
+        sel => memwbS(70), b => wbS
+    );
 end;
