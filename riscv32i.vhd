@@ -87,7 +87,7 @@ begin
         data => wbS, ro1 => reg1S, ro2 => reg2S
     );
     IDEX: entity work.pipelineReg(arch) generic map(88) port map(
-        clk => clk, wren => stallS, rst => idexFlushS,
+        clk => clk, wren => '1', rst => idexFlushS,
         regIn => luiS & auipcS & mem2RegS & regWrS & memWrS & memRdS
                & cntrlBrS & aluOpS & aluSrcS & ifidS(41 downto 32) & reg1S
                & reg2S & immS & ifidS(19 downto 15) & ifidS(24 downto 20)
