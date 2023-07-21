@@ -64,7 +64,7 @@ begin
     );
     IFID: entity work.pipelineReg(arch) port map(
         clk => clk, wren => stallS, rst => ifidFlushS,
-        regIn => pc & instrS, regOut => ifidS
+        regIn => pc(9 downto 0) & instrS, regOut => ifidS
     );
     ----------------------- instruction decode
     controlUnit: entity work.control(arch) port map(
@@ -163,7 +163,7 @@ begin
         inAddr => dataAddrS(9 downto 0), outAddr => exmemS(46 downto 37),
         inData => dataDataS, outData => dataMemOutS
     );
-    MEMWB: entity work.pipelineReg(arch) port map(
+    MEMWB: entity work.pipelineReg(arch) generic map(29) port map(
         clk => clk, wren => '1', rst => '0',
         regIn => exmemS(72 downto 71) & dataMemOutS & exmemS(68 downto 37)
                & exmemS(4 downto 0),
