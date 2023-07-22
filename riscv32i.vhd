@@ -22,12 +22,11 @@ architecture arch of riscv32i is
     signal hazardFlushS, ifidFlushS, idexFlushS, exmemFlushS : std_logic;
     signal aluOpS : std_logic_vector(3 downto 0);
     signal immS, beqPC, reg1S, reg2S : std_logic_vector(31 downto 0);
+    signal fwdRs1S, fwdRs2S : std_logic_vector(31 downto 0);
     signal idexS : std_logic_vector(134 downto 0);
 
     signal branchJalPC, jalrPC, pcAddrS : std_logic_vector(31 downto 0);
-    signal fwdRs1S, fwdRs2S : std_logic_vector(31 downto 0);
     signal aluA, aluB, aluOutS : std_logic_vector(31 downto 0);
-    signal forwardAS, forwardBS : std_logic_vector(1 downto 0);
     signal exmemS : std_logic_vector(106 downto 0);
 
     signal dataMemOutS, dataAddrS, dataDataS : std_logic_vector(31 downto 0);
@@ -75,7 +74,7 @@ begin
         regWr => regWrS, mem2Reg => mem2RegS, auipc => auipcS,
         lui => luiS, jal => jalS, jalr => jalRS
     );
-    beqS <= '1' when reg1S = reg2S else '0';
+    beqS <= '1' when fwdRs1S = fwdRs2S else '0';
     hazardDetectionUnit: entity work.hazardDetection port map(
         rdMem => idexS(67), beq => beqS,
         rd => memwbS(4 downto 0), rs1 => ifidS(19 downto 15),
@@ -95,11 +94,19 @@ begin
         rs2 => ifidS(24 downto 20), rd => memwbS(4 downto 0),
         data => wbS, ro1 => reg1S, ro2 => reg2S
     );
+    forwardingUnit: entity work.forwarding(arch) port map(
+        idExRegWr => idexS(128), exMemRegWr => exmemS(71),
+        memWbRegWr => memwbS(69), rs1Addr => ifidS(19 downto 15),
+        rs2Addr => ifidS(24 downto 20), idExRdAddr => idexS(4 downto 0),
+        exMemRdAddr => exmemS(4 downto 0), memWbRdAddr => memwbS(4 downto 0),
+        rs1 => reg1S, rs2 => reg2S, idExRd => aluOutS, memWbRd => wbS,
+        exMemRd => exmemS(68 downto 37), fwdRs1 => fwdRs1S, fwdRs2 => fwdRs2S
+    );
     IDEX: entity work.pipelineReg(arch) generic map(93) port map(
         clk => clk, wren => '1', rst => idexFlushS,
         regIn => cntrlBrS & jalrS & jalS & luiS & auipcS & mem2RegS & regWrS 
                & memWrS & memRdS & aluOpS & aluSrcS & ifidS(41 downto 32)
-               & reg1S & reg2S & immS & ifidS(19 downto 15)
+               & fwdRs1S & fwdRs2S & immS & ifidS(19 downto 15)
                & ifidS(24 downto 20) & ifidS(11 downto 7),
         regOut => idexS
     );
@@ -108,34 +115,20 @@ begin
         a => x"00000" & idexS(120 downto 111) & "00",
         b => idexS(46 downto 15), c => branchJalPC
     );
-    forwardingUnit: entity work.forwarding(arch) port map(
-        exMemRegWr => exmemS(71), memWbRegWr => memwbS(69),
-        rs1 => idexS(14 downto 10), rs2 => idexS(9 downto 5),
-        exMemRd => exmemS(4 downto 0), memWbRd => memwbS(4 downto 0),
-        forwardA => forwardAS, forwardB => forwardBS
-    );
-    rs1Mux: entity work.mux3(arch) port map(
-        a0 => idexS(110 downto 79), a1 => wbS, a2 => exmemS(68 downto 37),
-        sel => forwardAS, b => fwdRs1S
-    );
-    rs2Mux: entity work.mux3(arch) port map(
-        a0 => idexS(78 downto 47), a1 => wbS, a2 => exmemS(68 downto 37),
-        sel => forwardBS, b => fwdRs2S
-    );
     alu1Mux: entity work.mux3(arch) port map(
-        a0 => fwdRs1S, a1 => x"00000" & idexS(120 downto 111) & "00",
-        a2 => x"00000000", sel => (or idexS(133 downto 131)) & idexS(130),
-        b => aluA
+        a0 => idexS(110 downto 79),
+        a1 => x"00000" & idexS(120 downto 111) & "00", a2 => x"00000000",
+        sel => (or idexS(133 downto 131)) & idexS(130), b => aluA
     );
     jalrAdder: entity work.adder(arch) port map(
-        a => fwdRs1S, b => idexS(46 downto 15), c => jalrPC
+        a => idexS(110 downto 79), b => idexS(46 downto 15), c => jalrPC
     );
     pcAddrMux: entity work.mux2(arch) port map(
         a0 => branchJalPC, a1 => jalrPC(31 downto 1) & '0',
         sel => idexS(133), b => pcAddrS
     );
     alu2Mux: entity work.mux3(arch) port map(
-        a0 => fwdRs2S, a1 => idexS(46 downto 15),
+        a0 => idexS(78 downto 47), a1 => idexS(46 downto 15),
         a2 => x"00000" & ifidS(41 downto 32) & "00",
         sel => (idexS(133) or idexS(132))
              & (idexS(121) and (not (idexS(133) or idexS(132)))), b => aluB
