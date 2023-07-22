@@ -132,7 +132,7 @@ begin
     );
     pcAddrMux: entity work.mux2(arch) port map(
         a0 => branchJalPC, a1 => jalrPC(31 downto 1) & '0',
-        sel => jalrS, b => pcAddrS
+        sel => idexS(133), b => pcAddrS
     );
     alu2Mux: entity work.mux3(arch) port map(
         a0 => fwdRs2S, a1 => idexS(46 downto 15),
