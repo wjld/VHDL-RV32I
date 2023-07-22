@@ -6,7 +6,7 @@ entity riscv32i is port(
     memIAddr, memDAddr : in std_logic_vector(9 downto 0);
     memIData, memDData : in std_logic_vector(31 downto 0);
     regAddr : in std_logic_vector(4 downto 0);
-    regData : out std_logic_vector(31 downto 0)
+    regData, currentPC : out std_logic_vector(31 downto 0)
 );
 end;
 
@@ -34,6 +34,7 @@ architecture arch of riscv32i is
 
     signal wbS : std_logic_vector(31 downto 0);
 begin
+    currentPC <= pc;
     ----------------------- instruction fetch
     muxBeqOthers: entity work.mux2(arch) port map(
         a0 => beqPC, a1 => exmemS(104 downto 73),
