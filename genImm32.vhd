@@ -28,6 +28,7 @@ output:
                  std_logic_vector(S) when x"23",
                  std_logic_vector(B) when x"63",
                  std_logic_vector(U) when x"37",
+                 std_logic_vector(U) when x"17",
                  std_logic_vector(J) when x"6F",
                  std_logic_vector(R) when others;
 end;
