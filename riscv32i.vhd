@@ -70,7 +70,7 @@ begin
     );
     ----------------------- instruction decode
     controlUnit: entity work.control(arch) port map(
-        opcode => ifidS(6 downto 2), funct3 => ifidS(14 downto 12),
+        opcode => ifidS(6 downto 0), funct3 => ifidS(14 downto 12),
         funct7 => ifidS(30), aluOp => aluOpS, aluSrc => aluSrcS,
         branch => cntrlBrS, memRd => memRdS, memWr => memWrS,
         regWr => regWrS, mem2Reg => mem2RegS, auipc => auipcS,
