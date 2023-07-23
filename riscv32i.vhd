@@ -78,8 +78,8 @@ begin
     );
     beqS <= '1' when fwdRs1S = fwdRs2S else '0';
     hazardDetectionUnit: entity work.hazardDetection port map(
-        rdMem => idexS(67), beq => beqS,
-        rd => memwbS(4 downto 0), rs1 => ifidS(19 downto 15),
+        rdMem => idexS(126), beq => beqS,
+        rd => idexS(4 downto 0), rs1 => ifidS(19 downto 15),
         rs2 => ifidS(24 downto 20),
         funct3Opcode => ifidS(14 downto 12) & ifidS(6 downto 0),
         stall => stallS, flush => hazardFlushS
