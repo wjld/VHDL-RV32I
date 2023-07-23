@@ -60,8 +60,9 @@ begin
         a => pc, b => x"00000004", c => plus4PC
     );
     instrMem: entity work.memory(arch) port map(
-        clk => clk, wren => memIWr, rden => '1', inAddr => memIAddr,
-        outAddr => pc(11 downto 2), inData => memIData, outData => instrS
+        clk => clk, wren => memIWr, rden => not (memIWr or memDWr),
+        inAddr => memIAddr, outAddr => pc(11 downto 2),
+        inData => memIData, outData => instrS
     );
     IFID: entity work.pipelineReg(arch) port map(
         clk => clk, wren => stallS, rst => ifidFlushS,
