@@ -11,6 +11,7 @@ end;
 
 architecture arch of hazardDetection is
 begin
-    stall <= '0' when rdMem = '1' and (rd = rs1 or rd = rs2) else '1';
+    stall <= '0' when rdMem = '1' and rd /= "00000" 
+                                  and (rd = rs1 or rd = rs2) else '1';
     flush <= beq when funct3Opcode = "0001100011" else '0';
 end;
