@@ -153,7 +153,8 @@ begin
     EXMEM: entity work.pipelineReg(arch) generic map(66) port map(
         clk => clk, wren => '1', rst => exmemFlushS,
         regIn => idexS(135 downto 134) & (or idexS(133 downto 132)) & pcAddrS
-               & idexS(129 downto 126) & aluOutS & aluB & idexS(4 downto 0),
+               & idexS(129 downto 126) & aluOutS & idexS(78 downto 47)
+               & idexS(4 downto 0),
         regOut => exmemS
     );
     ----------------------- memory access
