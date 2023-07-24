@@ -5,8 +5,8 @@ entity riscv32i is port(
     clk, memIWr, memDWr : in std_logic;
     memIAddr, memDAddr : in std_logic_vector(9 downto 0);
     memIData, memDData : in std_logic_vector(31 downto 0);
-    regAddr : in std_logic_vector(4 downto 0);
-    regData, currentPC : out std_logic_vector(31 downto 0)
+    ecallD, ecallM : out std_logic;
+    reg1Data, reg2Data, memData, currentPC : out std_logic_vector(31 downto 0)
 );
 end;
 
@@ -17,17 +17,17 @@ architecture arch of riscv32i is
     signal instrS : std_logic_vector(31 downto 0);
     signal ifidS : std_logic_vector(41 downto 0);
 
-    signal aluSrcS, cntrlBrS, memRdS, memWrS : std_logic;
-    signal regWrS, mem2RegS, auipcS, luiS, jalS, jalrS, beqS : std_logic;
+    signal aluSrcS, cntrlBrS, memRdS, memWrS, regWrS, mem2RegS : std_logic;
+    signal auipcS, luiS, jalS, jalrS, ecallS, beqS : std_logic;
     signal hazardFlushS, ifidFlushS, idexFlushS, exmemFlushS : std_logic;
     signal aluOpS : std_logic_vector(3 downto 0);
-    signal immS, beqPC, reg1S, reg2S : std_logic_vector(31 downto 0);
-    signal fwdRs1S, fwdRs2S : std_logic_vector(31 downto 0);
-    signal idexS : std_logic_vector(134 downto 0);
+    signal immS, beqPC, reg1S, reg2S, rs1AddrS : std_logic_vector(31 downto 0);
+    signal rs2AddrS, fwdRs1S, fwdRs2S : std_logic_vector(31 downto 0);
+    signal idexS : std_logic_vector(135 downto 0);
 
     signal branchJalPC, jalrPC, pcAddrS : std_logic_vector(31 downto 0);
     signal aluA, aluB, aluOutS : std_logic_vector(31 downto 0);
-    signal exmemS : std_logic_vector(106 downto 0);
+    signal exmemS : std_logic_vector(107 downto 0);
 
     signal dataMemOutS, dataAddrS, dataDataS : std_logic_vector(31 downto 0);
     signal memwbS : std_logic_vector(70 downto 0);
@@ -74,8 +74,9 @@ begin
         funct7 => ifidS(30), aluOp => aluOpS, aluSrc => aluSrcS,
         branch => cntrlBrS, memRd => memRdS, memWr => memWrS,
         regWr => regWrS, mem2Reg => mem2RegS, auipc => auipcS,
-        lui => luiS, jal => jalS, jalr => jalRS
+        lui => luiS, jal => jalS, jalr => jalRS, ecall => ecallS
     );
+    ecallD <= ecallS;
     beqS <= '1' when fwdRs1S = fwdRs2S else '0';
     hazardDetectionUnit: entity work.hazardDetection port map(
         rdMem => idexS(126), beq => beqS,
@@ -91,25 +92,36 @@ begin
         a => x"00000" & ifidS(41 downto 32) & "00",
         b => immS, c => beqPC
     );
+    reg1AddrMux: entity work.mux2(arch) port map(
+        a0 => x"000000" & "000" & ifidS(19 downto 15), a1 => x"00000011",
+        sel => ecallS, b => rs1AddrS
+    );
+    reg2AddrMux: entity work.mux2(arch) port map(
+        a0 => x"000000" & "000" & ifidS(24 downto 20), a1 => x"0000000A",
+        sel => ecallS, b => rs2AddrS
+    );
     regFile: entity work.xregs(arch) port map(
-        clk => clk, wren => memwbS(69), rs1 => ifidS(19 downto 15),
-        rs2 => ifidS(24 downto 20), rd => memwbS(4 downto 0),
+        clk => clk, wren => memwbS(69), rs1 => rs1AddrS(4 downto 0),
+        rs2 => rs2AddrS(4 downto 0), rd => memwbS(4 downto 0),
         data => wbS, ro1 => reg1S, ro2 => reg2S
     );
     forwardingUnit: entity work.forwarding(arch) port map(
         idExRegWr => idexS(128), exMemRegWr => exmemS(71),
-        memWbRegWr => memwbS(69), rs1Addr => ifidS(19 downto 15),
-        rs2Addr => ifidS(24 downto 20), idExRdAddr => idexS(4 downto 0),
+        memWbRegWr => memwbS(69), rs1Addr => rs1AddrS(4 downto 0),
+        rs2Addr => rs2AddrS(4 downto 0), idExRdAddr => idexS(4 downto 0),
         exMemRdAddr => exmemS(4 downto 0), memWbRdAddr => memwbS(4 downto 0),
         rs1 => reg1S, rs2 => reg2S, idExRd => aluOutS, memWbRd => wbS,
         exMemRd => exmemS(68 downto 37), fwdRs1 => fwdRs1S, fwdRs2 => fwdRs2S
     );
-    IDEX: entity work.pipelineReg(arch) generic map(93) port map(
+    reg1Data <= fwdRs1S;
+    reg2Data <= fwdRs2S;
+    IDEX: entity work.pipelineReg(arch) generic map(94) port map(
         clk => clk, wren => '1', rst => idexFlushS,
-        regIn => cntrlBrS & jalrS & jalS & luiS & auipcS & mem2RegS & regWrS 
-               & memWrS & memRdS & aluOpS & aluSrcS & ifidS(41 downto 32)
-               & fwdRs1S & fwdRs2S & immS & ifidS(19 downto 15)
-               & ifidS(24 downto 20) & ifidS(11 downto 7),
+        regIn => ecallS & cntrlBrS & jalrS & jalS & luiS & auipcS & mem2RegS
+               & regWrS & memWrS & memRdS & aluOpS & aluSrcS
+               & ifidS(41 downto 32) & fwdRs1S & fwdRs2S & immS
+               & ifidS(19 downto 15) & ifidS(24 downto 20)
+               & ifidS(11 downto 7),
         regOut => idexS
     );
     ----------------------- instruction execute
@@ -138,9 +150,9 @@ begin
     alu: entity work.alu(arch) port map(
         opcode => idexS(125 downto 122), A => aluA, B => aluB, Z => aluOutS
     );
-    EXMEM: entity work.pipelineReg(arch) generic map(65) port map(
+    EXMEM: entity work.pipelineReg(arch) generic map(66) port map(
         clk => clk, wren => '1', rst => exmemFlushS,
-        regIn => idexS(134) & (or idexS(133 downto 132)) & pcAddrS
+        regIn => idexS(135 downto 134) & (or idexS(133 downto 132)) & pcAddrS
                & idexS(129 downto 126) & aluOutS & aluB & idexS(4 downto 0),
         regOut => exmemS
     );
@@ -149,7 +161,7 @@ begin
               '0';
     dataMemAddrMux: entity work.mux2(arch) port map(
         a0 => exmemS(68 downto 37), a1 => x"00000" & memDAddr & "00",
-        sel => memDWr, b => dataAddrS
+        sel => memDWr or exmemS(107), b => dataAddrS
     );
     dataMemDataMux: entity work.mux2(arch) port map(
         a0 => exmemS(36 downto 5), a1 => memDData,
@@ -157,9 +169,11 @@ begin
     );
     dataMemory: entity work.memory(arch) port map(
         clk => clk, wren => exmemS(70) or memDWr, rden => exmemS(69),
-        inAddr => dataAddrS(11 downto 2), outAddr => exmemS(48 downto 39),
+        inAddr => dataAddrS(11 downto 2), outAddr => dataAddrS(11 downto 2),
         inData => dataDataS, outData => dataMemOutS
     );
+    ecallM <= exmemS(107);
+    memData <= dataMemOutS;
     MEMWB: entity work.pipelineReg(arch) generic map(29) port map(
         clk => clk, wren => '1', rst => '0',
         regIn => exmemS(72 downto 71) & dataMemOutS & exmemS(68 downto 37)
