@@ -28,6 +28,7 @@ architecture arch of riscv32i is
     signal exmemS : std_logic_vector(110 downto 0);
 
     signal dataMemOutS, dataAddrS, dataDataS : std_logic_vector(31 downto 0);
+    signal signedWordS : std_logic_vector(31 downto 0);
     signal memwbS : std_logic_vector(70 downto 0);
 
     signal wbS : std_logic_vector(31 downto 0);
@@ -173,11 +174,15 @@ begin
         inAddr => dataAddrS(11 downto 0), outAddr => dataAddrS(11 downto 0),
         inData => dataDataS, outData => dataMemOutS
     );
+    wordSign: entity work.extendSign(arch) port map(
+        byte => exmemS(108), half => exmemS(109), unsigned => exmemS(110),
+        wordIn => dataMemOutS, wordOut => signedWordS
+    );
     ecallM <= exmemS(107);
-    memData <= dataMemOutS;
+    memData <= signedWordS;
     MEMWB: entity work.pipelineReg(arch) generic map(29) port map(
         clk => clk, wren => '1', rst => '0',
-        regIn => exmemS(72 downto 71) & dataMemOutS & exmemS(68 downto 37)
+        regIn => exmemS(72 downto 71) & signedWordS & exmemS(68 downto 37)
                & exmemS(4 downto 0),
         regOut => memwbS
     );
