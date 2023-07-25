@@ -17,10 +17,8 @@ architecture arch of riscv32i is
     signal instrS : std_logic_vector(31 downto 0);
     signal ifidS : std_logic_vector(41 downto 0);
 
-    signal aluSrcS, cntrlBrS, memRdS, memWrS, regWrS, mem2RegS : std_logic;
-    signal auipcS, luiS, jalS, jalrS, ecallS, beqS : std_logic;
-    signal hazardFlushS, ifidFlushS, idexFlushS, exmemFlushS : std_logic;
-    signal aluOpS : std_logic_vector(3 downto 0);
+    signal beqS, hazardFlushS, ifidFlushS, idexFlushS, exmemFlushS : std_logic;
+    signal ctrlS : std_logic_vector(17 downto 0);
     signal immS, beqPC, reg1S, reg2S, rs1AddrS : std_logic_vector(31 downto 0);
     signal rs2AddrS, fwdRs1S, fwdRs2S : std_logic_vector(31 downto 0);
     signal idexS : std_logic_vector(135 downto 0);
@@ -71,12 +69,13 @@ begin
     ----------------------- instruction decode
     controlUnit: entity work.control(arch) port map(
         opcode => ifidS(6 downto 0), funct3 => ifidS(14 downto 12),
-        funct7 => ifidS(30), aluOp => aluOpS, aluSrc => aluSrcS,
-        branch => cntrlBrS, memRd => memRdS, memWr => memWrS,
-        regWr => regWrS, mem2Reg => mem2RegS, auipc => auipcS,
-        lui => luiS, jal => jalS, jalr => jalRS, ecall => ecallS
+        funct7 => ifidS(30), aluOp => ctrlS(4 downto 1), aluSrc => ctrlS(0),
+        branch => ctrlS(13), memRd => ctrlS(5), memWr => ctrlS(6),
+        regWr => ctrlS(7), mem2Reg => ctrlS(8), auipc => ctrlS(9),
+        lui => ctrlS(10), jal => ctrlS(11), jalr => ctrlS(12),
+        ecall => ctrlS(14)
     );
-    ecallD <= ecallS;
+    ecallD <= ctrlS(14);
     beqS <= '1' when fwdRs1S = fwdRs2S else '0';
     hazardDetectionUnit: entity work.hazardDetection port map(
         rdMem => exmemS(69), beq => beqS,
@@ -94,11 +93,11 @@ begin
     );
     reg1AddrMux: entity work.mux2(arch) port map(
         a0 => x"000000" & "000" & ifidS(19 downto 15), a1 => x"00000011",
-        sel => ecallS, b => rs1AddrS
+        sel => ctrlS(14), b => rs1AddrS
     );
     reg2AddrMux: entity work.mux2(arch) port map(
         a0 => x"000000" & "000" & ifidS(24 downto 20), a1 => x"0000000A",
-        sel => ecallS, b => rs2AddrS
+        sel => ctrlS(14), b => rs2AddrS
     );
     regFile: entity work.xregs(arch) port map(
         clk => clk, wren => memwbS(69), rs1 => rs1AddrS(4 downto 0),
@@ -110,16 +109,15 @@ begin
         memWbRegWr => memwbS(69), rs1Addr => rs1AddrS(4 downto 0),
         rs2Addr => rs2AddrS(4 downto 0), idExRdAddr => idexS(4 downto 0),
         exMemRdAddr => exmemS(4 downto 0), memWbRdAddr => memwbS(4 downto 0),
-        rs1 => reg1S, rs2 => reg2S, idExRd => aluOutS, memWbRd => wbS,
-        exMemRd => exmemS(68 downto 37), fwdRs1 => fwdRs1S, fwdRs2 => fwdRs2S
+        rs1 => reg1S, rs2 => reg2S, idExRd => aluOutS,
+        exMemRd => exmemS(68 downto 37), memWbRd => wbS, fwdRs1 => fwdRs1S,
+        fwdRs2 => fwdRs2S
     );
     reg1Data <= fwdRs1S;
     reg2Data <= fwdRs2S;
     IDEX: entity work.pipelineReg(arch) generic map(94) port map(
         clk => clk, wren => '1', rst => idexFlushS,
-        regIn => ecallS & cntrlBrS & jalrS & jalS & luiS & auipcS & mem2RegS
-               & regWrS & memWrS & memRdS & aluOpS & aluSrcS
-               & ifidS(41 downto 32) & fwdRs1S & fwdRs2S & immS
+        regIn => ctrlS & ifidS(41 downto 32) & fwdRs1S & fwdRs2S & immS
                & ifidS(19 downto 15) & ifidS(24 downto 20)
                & ifidS(11 downto 7),
         regOut => idexS
