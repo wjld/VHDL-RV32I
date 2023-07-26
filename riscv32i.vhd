@@ -46,8 +46,8 @@ begin
         b => pcS
     );
     ifidFlushS <= hazardFlushS or brJmpS;
-    idexFlushS <= brJmpS;
-    exmemFlushS <= brJmpS;
+    idexFlushS <= brJmpS or (not stallExS);
+    exmemFlushS <= brJmpS or (not stallMemS);
     process(clk) is begin
         if(clk'event and clk = '1') then
             if(((stallExS and stallMemS) = '1' or ifidFlushS = '1')
