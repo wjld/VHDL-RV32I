@@ -11,7 +11,7 @@ entity riscv32i is port(
 end;
 
 architecture arch of riscv32i is
-    signal brJmpS, stallS : std_logic;
+    signal brJmpS, stallExS, stallMemS : std_logic;
     signal pc : std_logic_vector(31 downto 0) := x"00000000";
     signal plus4PC, brJmpPC, pcS : std_logic_vector(31 downto 0);
     signal instrS : std_logic_vector(31 downto 0);
@@ -50,7 +50,8 @@ begin
     exmemFlushS <= brJmpS;
     process(clk) is begin
         if(clk'event and clk = '1') then
-            if(stallS = '1' and ((memIWr or memDWr) = '0')) then
+            if(((stallExS and stallMemS) = '1' or ifidFlushS = '1')
+               and ((memIWr or memDWr) = '0')) then
                 pc <= pcS;
             end if;
         end if;
@@ -63,9 +64,9 @@ begin
         byte => '0', half => '0', inAddr => memIAddr,
         outAddr => pc(11 downto 0), inData => memIData, outData => instrS
     );
-    IFID: entity work.pipelineReg(arch) port map(
-        clk => clk, wren => stallS, rst => ifidFlushS,
-        regIn => pc(11 downto 2) & instrS, regOut => ifidS
+    IFID: entity work.pipelineReg(arch) generic map(1) port map(
+        clk => clk, wren => stallExS and stallMemS, rst => ifidFlushS,
+        regIn => pcS(12) & pc(11 downto 2) & instrS, regOut => ifidS
     );
     ----------------------- instruction decode
     controlUnit: entity work.control(arch) port map(
@@ -80,11 +81,11 @@ begin
     ecallD <= ctrlS(14);
     beqS <= '1' when fwdRs1S = fwdRs2S else '0';
     hazardDetectionUnit: entity work.hazardDetection port map(
-        rdMem => exmemS(69), beq => beqS,
-        rd => exmemS(4 downto 0), rs1 => ifidS(19 downto 15),
-        rs2 => ifidS(24 downto 20),
+        rdMemIdEx => idexS(126), rdMemExMem => exmemS(69), beq => beqS,
+        rdIdEx => idexS(4 downto 0), rdExMem => exmemS(4 downto 0),
+        rs1 => ifidS(19 downto 15), rs2 => ifidS(24 downto 20),
         funct3Opcode => ifidS(14 downto 12) & ifidS(6 downto 0),
-        stall => stallS, flush => hazardFlushS
+        stallEx => stallExS, stallMem => stallMemS, flush => hazardFlushS
     );
     immGen: entity work.genImm32(arch) port map(
         instr => ifidS(31 downto 0), imm32 => immS
@@ -118,7 +119,7 @@ begin
     reg1Data <= fwdRs1S;
     reg2Data <= fwdRs2S;
     IDEX: entity work.pipelineReg(arch) generic map(97) port map(
-        clk => clk, wren => '1', rst => idexFlushS,
+        clk => clk, wren => stallMemS, rst => idexFlushS,
         regIn => ctrlS & ifidS(41 downto 32) & fwdRs1S & fwdRs2S & immS
                & ifidS(19 downto 15) & ifidS(24 downto 20)
                & ifidS(11 downto 7),
