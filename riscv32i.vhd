@@ -5,7 +5,7 @@ entity riscv32i is port(
     clk, memIWr, memDWr : in std_logic;
     memIAddr, memDAddr : in std_logic_vector(11 downto 0);
     memIData, memDData : in std_logic_vector(31 downto 0);
-    ecallD, ecallM : out std_logic;
+    ecallD, ecallM, codeWrap : out std_logic;
     reg1Data, reg2Data, memData, currentPC : out std_logic_vector(31 downto 0)
 );
 end;
@@ -15,17 +15,17 @@ architecture arch of riscv32i is
     signal pc : std_logic_vector(31 downto 0) := x"00000000";
     signal plus4PC, brJmpPC, pcS : std_logic_vector(31 downto 0);
     signal instrS : std_logic_vector(31 downto 0);
-    signal ifidS : std_logic_vector(41 downto 0);
+    signal ifidS : std_logic_vector(42 downto 0);
 
     signal beqS, hazardFlushS, ifidFlushS, idexFlushS, exmemFlushS : std_logic;
     signal ctrlS : std_logic_vector(17 downto 0);
     signal immS, beqPC, reg1S, reg2S, rs1AddrS : std_logic_vector(31 downto 0);
     signal rs2AddrS, fwdRs1S, fwdRs2S : std_logic_vector(31 downto 0);
-    signal idexS : std_logic_vector(138 downto 0);
+    signal idexS : std_logic_vector(139 downto 0);
 
     signal branchJalPC, jalrPC, pcAddrS : std_logic_vector(31 downto 0);
     signal aluA, aluB, aluOutS : std_logic_vector(31 downto 0);
-    signal exmemS : std_logic_vector(110 downto 0);
+    signal exmemS : std_logic_vector(111 downto 0);
 
     signal dataMemOutS, dataAddrS, dataDataS : std_logic_vector(31 downto 0);
     signal signedWordS : std_logic_vector(31 downto 0);
@@ -54,6 +54,7 @@ begin
                and ((memIWr or memDWr) = '0')) then
                 pc <= pcS;
             end if;
+            codeWrap <= exmemS(111);
         end if;
     end process;
     pcPlus4Adder: entity work.adder(arch) port map(
@@ -118,10 +119,10 @@ begin
     );
     reg1Data <= fwdRs1S;
     reg2Data <= fwdRs2S;
-    IDEX: entity work.pipelineReg(arch) generic map(97) port map(
+    IDEX: entity work.pipelineReg(arch) generic map(98) port map(
         clk => clk, wren => stallMemS, rst => idexFlushS,
-        regIn => ctrlS & ifidS(41 downto 32) & fwdRs1S & fwdRs2S & immS
-               & ifidS(19 downto 15) & ifidS(24 downto 20)
+        regIn => ifidS(42) & ctrlS & ifidS(41 downto 32) & fwdRs1S & fwdRs2S
+               & immS & ifidS(19 downto 15) & ifidS(24 downto 20)
                & ifidS(11 downto 7),
         regOut => idexS
     );
@@ -151,9 +152,9 @@ begin
     alu: entity work.alu(arch) port map(
         opcode => idexS(125 downto 122), A => aluA, B => aluB, Z => aluOutS
     );
-    EXMEM: entity work.pipelineReg(arch) generic map(69) port map(
+    EXMEM: entity work.pipelineReg(arch) generic map(70) port map(
         clk => clk, wren => '1', rst => exmemFlushS,
-        regIn => idexS(138 downto 134) & (or idexS(133 downto 132)) & pcAddrS
+        regIn => idexS(139 downto 134) & (or idexS(133 downto 132)) & pcAddrS
                & idexS(129 downto 126) & aluOutS & idexS(78 downto 47)
                & idexS(4 downto 0),
         regOut => exmemS
