@@ -84,7 +84,7 @@ begin
     hazardDetectionUnit: entity work.hazardDetection port map(
         rdMemIdEx => idexS(126), rdMemExMem => exmemS(69), beq => beqS,
         rdIdEx => idexS(4 downto 0), rdExMem => exmemS(4 downto 0),
-        rs1 => ifidS(19 downto 15), rs2 => ifidS(24 downto 20),
+        rs1 => rs1AddrS(4 downto 0), rs2 => rs2AddrS(4 downto 0),
         funct3Opcode => ifidS(14 downto 12) & ifidS(6 downto 0),
         stallEx => stallExS, stallMem => stallMemS, flush => hazardFlushS
     );
