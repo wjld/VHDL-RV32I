@@ -6,3 +6,5 @@ work/
 *.mti
 #modelsim simulation files
 *.wlf
+#output folder
+output/
