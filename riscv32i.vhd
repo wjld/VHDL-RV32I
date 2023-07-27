@@ -37,8 +37,8 @@ begin
     currentPC <= pc;
     ----------------------- instruction fetch
     muxBrJmpOthers: entity work.mux2(arch) port map(
-        a0 => pcAddrS, a1 => branchPC,
-        sel => (not (hazardFlushS or ctrlS(11) or ctrlS(12))) and branchS,
+        a0 => branchPC, a1 => pcAddrS,
+        sel => not branchS and (hazardFlushS or ctrlS(11) or ctrlS(12)),
         b => brJmpPC
     );
     muxPC: entity work.mux2(arch) port map(
