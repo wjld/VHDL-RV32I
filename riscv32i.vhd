@@ -11,7 +11,7 @@ entity riscv32i is port(
 end;
 
 architecture arch of riscv32i is
-    signal brJmpS, stallExS, stallMemS : std_logic;
+    signal branchS, stallExS, stallMemS : std_logic;
     signal pc : std_logic_vector(31 downto 0) := x"00000000";
     signal plus4PC, brJmpPC, pcS : std_logic_vector(31 downto 0);
     signal instrS : std_logic_vector(31 downto 0);
@@ -19,11 +19,12 @@ architecture arch of riscv32i is
 
     signal beqS, hazardFlushS, ifidFlushS, idexFlushS, exmemFlushS : std_logic;
     signal ctrlS : std_logic_vector(17 downto 0);
-    signal immS, beqPC, reg1S, reg2S, rs1AddrS : std_logic_vector(31 downto 0);
+    signal beqJalPC, jalrPC, pcAddrS : std_logic_vector(31 downto 0);
+    signal immS, reg1S, reg2S, rs1AddrS : std_logic_vector(31 downto 0);
     signal rs2AddrS, fwdRs1S, fwdRs2S : std_logic_vector(31 downto 0);
     signal idexS : std_logic_vector(139 downto 0);
 
-    signal branchJalPC, jalrPC, pcAddrS : std_logic_vector(31 downto 0);
+    signal branchPC, jumpRaS : std_logic_vector(31 downto 0);
     signal aluA, aluB, aluOutS : std_logic_vector(31 downto 0);
     signal exmemS : std_logic_vector(77 downto 0);
 
@@ -35,22 +36,23 @@ architecture arch of riscv32i is
 begin
     currentPC <= pc;
     ----------------------- instruction fetch
-    muxBeqOthers: entity work.mux2(arch) port map(
-        a0 => beqPC, a1 => pcAddrS,
-        sel => (not hazardFlushS) and brJmpS,
+    muxBrJmpOthers: entity work.mux2(arch) port map(
+        a0 => branchPC, a1 => pcAddrS,
+        sel => not branchS and (hazardFlushS or ctrlS(11) or ctrlS(12)),
         b => brJmpPC
     );
     muxPC: entity work.mux2(arch) port map(
         a0 => plus4PC, a1 => brJmpPC,
-        sel => hazardFlushS or brJmpS,
+        sel => hazardFlushS or ctrlS(11) or ctrlS(12) or branchS,
         b => pcS
     );
-    ifidFlushS <= hazardFlushS or brJmpS;
-    idexFlushS <= brJmpS or (not stallExS);
+    ifidFlushS <= (hazardFlushS or ctrlS(11) or ctrlS(12) or branchS)
+                  and stallMemS;
+    idexFlushS <= branchS or (not stallExS);
     exmemFlushS <= not stallMemS;
     process(clk) is begin
         if(clk'event and clk = '1') then
-            if(((stallExS and stallMemS) = '1' or ifidFlushS = '1')
+            if((((stallExS or ifidFlushS) and stallMemS) = '1')
                and ((memIWr or memDWr) = '0')) then
                 pc <= pcS;
             end if;
@@ -91,9 +93,9 @@ begin
     immGen: entity work.genImm32(arch) port map(
         instr => ifidS(31 downto 0), imm32 => immS
     );
-    beqAdder: entity work.adder(arch) port map(
+    beqJalAdder: entity work.adder(arch) port map(
         a => x"00000" & ifidS(41 downto 32) & "00",
-        b => immS, c => beqPC
+        b => immS, c => beqJalPC
     );
     reg1AddrMux: entity work.mux2(arch) port map(
         a0 => x"000000" & "000" & ifidS(19 downto 15), a1 => x"00000011",
@@ -117,6 +119,13 @@ begin
         exMemRd => exmemS(68 downto 37), memWbRd => wbS, fwdRs1 => fwdRs1S,
         fwdRs2 => fwdRs2S
     );
+    jalrAdder: entity work.adder(arch) port map(
+        a => fwdRs1S, b => immS, c => jalrPC
+    );
+    pcAddrMux: entity work.mux2(arch) port map(
+        a0 => beqJalPC, a1 => jalrPC(31 downto 1) & '0',
+        sel => ctrlS(12), b => pcAddrS
+    );
     reg1Data <= fwdRs1S;
     reg2Data <= fwdRs2S;
     IDEX: entity work.pipelineReg(arch) generic map(98) port map(
@@ -127,33 +136,28 @@ begin
         regOut => idexS
     );
     ----------------------- instruction execute
-    branchJalAdder: entity work.adder(arch) port map(
-        a => x"00000" & idexS(120 downto 111) & "00",
-        b => idexS(46 downto 15), c => branchJalPC
+    branchAdder: entity work.adder(arch) port map(
+        a => x"00000" & idexS(120 downto 111) & "00", b => idexS(46 downto 15),
+        c => branchPC
+    );
+    jumpRaAdder: entity work.adder(arch) port map(
+        a => x"00000" & idexS(120 downto 111) & "00", b => x"00000004",
+        c => jumpRaS
     );
     alu1Mux: entity work.mux3(arch) port map(
         a0 => idexS(110 downto 79),
         a1 => x"00000" & idexS(120 downto 111) & "00", a2 => x"00000000",
         sel => (or idexS(133 downto 131)) & idexS(130), b => aluA
     );
-    jalrAdder: entity work.adder(arch) port map(
-        a => idexS(110 downto 79), b => idexS(46 downto 15), c => jalrPC
-    );
-    pcAddrMux: entity work.mux2(arch) port map(
-        a0 => branchJalPC, a1 => jalrPC(31 downto 1) & '0',
-        sel => idexS(133), b => pcAddrS
-    );
     alu2Mux: entity work.mux3(arch) port map(
-        a0 => idexS(78 downto 47), a1 => idexS(46 downto 15),
-        a2 => x"00000" & ifidS(41 downto 32) & "00",
+        a0 => idexS(78 downto 47), a1 => idexS(46 downto 15), a2 => jumpRaS,
         sel => (idexS(133) or idexS(132))
              & (idexS(121) and (not (idexS(133) or idexS(132)))), b => aluB
     );
     alu: entity work.alu(arch) port map(
         opcode => idexS(125 downto 122), A => aluA, B => aluB, Z => aluOutS
     );
-    brJmpS <= '1' when ((idexS(133) or idexS(132))
-                        or (idexS(134) and aluOutS(0))) = '1' else '0';
+    branchS <= '1' when (idexS(134) and aluOutS(0)) = '1' else '0';
     EXMEM: entity work.pipelineReg(arch) generic map(36) port map(
         clk => clk, wren => '1', rst => exmemFlushS,
         regIn => idexS(139 downto 135) & idexS(129 downto 126)
